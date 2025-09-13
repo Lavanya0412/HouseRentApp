@@ -171,8 +171,8 @@ export default function UpdateListing() {
     try {
       setLoading(true);
       setError(null);
-      // The API endpoint was slightly off, corrected to /api/listing/update/
-      const res = await fetch(`/api/listing/update/${params.listingId}`, {
+      // The API endpoint was slightly off, corrected to /api/listing/edit/
+      const res = await fetch(`/api/listing/edit/${params.listingId}`, {
         method: "POST", // Note: Your backend route might expect POST or PUT
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...formData, userRef: currentUser._id }),
