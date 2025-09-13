@@ -87,19 +87,16 @@ export const getListings = async (req, res, next) => {
     }
 
     let furnished = req.query.furnished;
-
     if (furnished === undefined || furnished === 'false') {
       furnished = { $in: [false, true] };
     }
 
     let parking = req.query.parking;
-
     if (parking === undefined || parking === 'false') {
       parking = { $in: [false, true] };
     }
 
     let type = req.query.type;
-
     if (type === undefined || type === 'all') {
       type = { $in: ['sale', 'rent'] };
     }
@@ -108,26 +105,29 @@ export const getListings = async (req, res, next) => {
     const sort = req.query.sort || 'createdAt';
     const order = req.query.order === 'asc' ? 1 : -1;
 
-    // --- UPDATED QUERY LOGIC FOR ABSOLUTE SEARCH ---
+    const bedrooms = parseInt(req.query.bedrooms) || 1;
+    const bathrooms = parseInt(req.query.bathrooms) || 1;
+
     const baseQuery = {
       offer,
       furnished,
       parking,
       type,
+      // --- MODIFIED: Changed from $gte to an exact match ---
+      bedrooms: bedrooms,
+      bathrooms: bathrooms,
+      // ---------------------------------------------------
     };
     
-    // Conditionally add search term to avoid issues with empty searches
     const query = searchTerm
       ? {
           ...baseQuery,
           $or: [
-            // Use regex with start (^) and end ($) anchors for an absolute, case-insensitive match
             { name: { $regex: `^${searchTerm}$`, $options: 'i' } },
             { address: { $regex: `^${searchTerm}$`, $options: 'i' } },
           ],
         }
       : baseQuery;
-
 
     const listings = await Listing.find(query)
       .sort({ [sort]: order })
