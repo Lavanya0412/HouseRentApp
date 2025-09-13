@@ -29,30 +29,22 @@ export const deleteListing = async (req, res, next) => {
   }
 };
 
+
 export const editListing = async (req, res, next) => {
-  // Start the try block here, at the very beginning
+  const listing = await Listing.findById(req.params.id);
+
+  if (!listing) {
+    return next(errorHandler(404, "Listing not found"));
+  }
+
+  if (req.user.id !== listing.userRef) {
+    return next(errorHandler(401, "You can only edit your own listings!"));
+  }
+
   try {
-    const listing = await Listing.findById(req.params.id);
-
-    if (!listing) {
-      return next(errorHandler(404, "Listing not found"));
-    }
-
-    if (req.user.id !== listing.userRef) {
-      return next(errorHandler(401, "You can only edit your own listings!"));
-    }
-
-    // The update logic is already safe inside the try block
-    const updatedListing = await Listing.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-
+    const updatedListing = await Listing.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.status(200).json(updatedListing);
-
   } catch (error) {
-    // Any error from anywhere above will be caught here
     next(error);
   }
 };
@@ -87,16 +79,19 @@ export const getListings = async (req, res, next) => {
     }
 
     let furnished = req.query.furnished;
+
     if (furnished === undefined || furnished === 'false') {
       furnished = { $in: [false, true] };
     }
 
     let parking = req.query.parking;
+
     if (parking === undefined || parking === 'false') {
       parking = { $in: [false, true] };
     }
 
     let type = req.query.type;
+
     if (type === undefined || type === 'all') {
       type = { $in: ['sale', 'rent'] };
     }
@@ -105,24 +100,28 @@ export const getListings = async (req, res, next) => {
     const sort = req.query.sort || 'createdAt';
     const order = req.query.order === 'asc' ? 1 : -1;
 
-    const bedrooms = parseInt(req.query.bedrooms) || 1;
-    const bathrooms = parseInt(req.query.bathrooms) || 1;
-
     const baseQuery = {
       offer,
       furnished,
       parking,
       type,
-      // --- MODIFIED: Changed from $gte to an exact match ---
-      bedrooms: bedrooms,
-      bathrooms: bathrooms,
-      // ---------------------------------------------------
     };
     
+    // --- NEW: Conditionally add exact match for beds and baths ---
+    if (req.query.bedrooms) {
+      baseQuery.bedrooms = parseInt(req.query.bedrooms);
+    }
+    if (req.query.bathrooms) {
+      baseQuery.bathrooms = parseInt(req.query.bathrooms);
+    }
+    // -----------------------------------------------------------
+    
+    // Conditionally add search term to avoid issues with empty searches
     const query = searchTerm
       ? {
           ...baseQuery,
           $or: [
+            // Use regex with start (^) and end ($) anchors for an absolute, case-insensitive match
             { name: { $regex: `^${searchTerm}$`, $options: 'i' } },
             { address: { $regex: `^${searchTerm}$`, $options: 'i' } },
           ],
